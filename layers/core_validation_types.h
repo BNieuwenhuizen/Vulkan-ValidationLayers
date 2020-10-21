@@ -386,6 +386,8 @@ class BUFFER_STATE : public BINDABLE {
             createInfo.pQueueFamilyIndices = nullptr;
         }
     };
+
+    bool Protected() const;
 };
 
 class BUFFER_VIEW_STATE : public BASE_NODE {
@@ -397,6 +399,8 @@ class BUFFER_VIEW_STATE : public BASE_NODE {
     BUFFER_VIEW_STATE(const std::shared_ptr<BUFFER_STATE> &bf, VkBufferView bv, const VkBufferViewCreateInfo *ci)
         : buffer_view(bv), create_info(*ci), buffer_state(bf){};
     BUFFER_VIEW_STATE(const BUFFER_VIEW_STATE &rh_obj) = delete;
+
+    bool Protected() const;
 };
 
 struct SAMPLER_STATE : public BASE_NODE {
@@ -430,6 +434,7 @@ class IMAGE_STATE : public BINDABLE {
     uint64_t ahb_format;                 // External Android format, if provided
     VkImageSubresourceRange full_range;  // The normalized ISR for all levels, layers (slices), and aspects
     VkSwapchainKHR create_from_swapchain;
+    bool create_from_swapchain_protected;
     VkSwapchainKHR bind_swapchain;
     uint32_t bind_swapchain_imageIndex;
     image_layout_map::Encoder range_encoder;
@@ -500,6 +505,8 @@ class IMAGE_STATE : public BINDABLE {
             createInfo.pQueueFamilyIndices = nullptr;
         }
     };
+
+    bool Protected() const;
 };
 
 class IMAGE_VIEW_STATE : public BASE_NODE {
@@ -517,6 +524,7 @@ class IMAGE_VIEW_STATE : public BASE_NODE {
     IMAGE_VIEW_STATE(const IMAGE_VIEW_STATE &rh_obj) = delete;
 
     bool OverlapSubresource(const IMAGE_VIEW_STATE &compare_view) const;
+    bool Protected() const;
 };
 
 class ACCELERATION_STRUCTURE_STATE : public BINDABLE {
@@ -572,6 +580,8 @@ class SWAPCHAIN_NODE : public BASE_NODE {
     uint32_t get_swapchain_image_count = 0;
     SWAPCHAIN_NODE(const VkSwapchainCreateInfoKHR *pCreateInfo, VkSwapchainKHR swapchain)
         : createInfo(pCreateInfo), swapchain(swapchain) {}
+
+    bool Protected() const;
 };
 
 extern bool ImageLayoutMatches(const VkImageAspectFlags aspect_mask, VkImageLayout a, VkImageLayout b);
@@ -1307,6 +1317,8 @@ struct CMD_BUFFER_STATE : public BASE_NODE {
 
     const cvdescriptorset::Descriptor *GetDescriptor(VkPipelineBindPoint bind_point, uint32_t set, uint32_t binding,
                                                      uint32_t index) const;
+
+    bool Protected() const;
 };
 
 static inline const QFOTransferBarrierSets<VkImageMemoryBarrier> &GetQFOBarrierSets(

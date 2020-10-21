@@ -288,6 +288,8 @@ void ValidationStateTracker::PostCallRecordCreateImage(VkDevice device, const Vk
     const auto swapchain_info = lvl_find_in_chain<VkImageSwapchainCreateInfoKHR>(pCreateInfo->pNext);
     if (swapchain_info) {
         is_node->create_from_swapchain = swapchain_info->swapchain;
+        const auto *swapchain_state = Get<SWAPCHAIN_NODE>(swapchain_info->swapchain);
+        is_node->create_from_swapchain_protected = swapchain_state->Protected();
     }
 
     // Record the memory requirements in case they won't be queried
@@ -5886,6 +5888,7 @@ void ValidationStateTracker::PostCallRecordGetSwapchainImagesKHR(VkDevice device
             auto &image_state = imageMap[pSwapchainImages[i]];
             image_state->valid = false;
             image_state->create_from_swapchain = swapchain;
+            image_state->create_from_swapchain_protected = swapchain_state->Protected();
             image_state->bind_swapchain = swapchain;
             image_state->bind_swapchain_imageIndex = i;
             image_state->is_swapchain_image = true;
