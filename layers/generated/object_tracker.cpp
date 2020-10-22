@@ -31,6 +31,13 @@
 #include "object_lifetime_validation.h"
 
 
+#include <unordered_map>
+#include <vector>
+#include <mutex>
+
+std::mutex set_layout_mutex;
+std::unordered_map<VkDescriptorSet, VkDescriptorSetLayout> set_layouts;
+
 
 // ObjectTracker undestroyed objects validation function
 bool ObjectLifetimes::ReportUndestroyedInstanceObjects(VkInstance instance, const std::string& error_code) const {
@@ -1527,6 +1534,13 @@ bool ObjectLifetimes::PreCallValidateCmdBindDescriptorSets(
     if (pDescriptorSets) {
         for (uint32_t index0 = 0; index0 < descriptorSetCount; ++index0) {
             skip |= ValidateObject(pDescriptorSets[index0], kVulkanObjectTypeDescriptorSet, false, "VUID-vkCmdBindDescriptorSets-pDescriptorSets-parameter", "VUID-vkCmdBindDescriptorSets-commonparent");
+            {
+                std::unique_lock<std::mutex> l(set_layout_mutex);
+                auto it = set_layouts.find(pDescriptorSets[index0]);
+                if (it != set_layouts.end()) {
+                     skip |= ValidateObject(it->second, kVulkanObjectTypeDescriptorSetLayout, false, "VUID-vkCmdBindDescriptorSets-pDescriptorSets-layout-parameter", "VUID-vkCmdBindDescriptorSets-commonparent");
+                }
+            }
         }
     }
 

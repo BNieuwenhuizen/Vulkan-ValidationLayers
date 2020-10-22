@@ -24,6 +24,13 @@
 
 #include "object_lifetime_validation.h"
 
+#include <unordered_map>
+#include <vector>
+#include <mutex>
+
+extern std::mutex set_layout_mutex;
+extern std::unordered_map<VkDescriptorSet, VkDescriptorSetLayout> set_layouts;
+
 uint64_t object_track_index = 0;
 
 VulkanTypedHandle ObjTrackStateTypedHandle(const ObjTrackState &track_state) {
@@ -475,6 +482,12 @@ void ObjectLifetimes::PreCallRecordResetDescriptorPool(VkDevice device, VkDescri
         auto pPoolNode = itr->second;
         for (auto set : *pPoolNode->child_objects) {
             RecordDestroyObject((VkDescriptorSet)set, kVulkanObjectTypeDescriptorSet);
+            {
+                std::unique_lock<std::mutex> l(set_layout_mutex);
+                auto it = set_layouts.find((VkDescriptorSet)set);
+                if (it != set_layouts.end())
+                    set_layouts.erase(it);
+            }
         }
         pPoolNode->child_objects->clear();
     }
@@ -674,6 +687,9 @@ void ObjectLifetimes::PostCallRecordAllocateDescriptorSets(VkDevice device, cons
     auto lock = write_shared_lock();
     for (uint32_t i = 0; i < pAllocateInfo->descriptorSetCount; i++) {
         AllocateDescriptorSet(pAllocateInfo->descriptorPool, pDescriptorSets[i]);
+
+        std::unique_lock<std::mutex> l(set_layout_mutex);
+        set_layouts[pDescriptorSets[i]] = pAllocateInfo->pSetLayouts[i];
     }
 }
 
@@ -745,6 +761,12 @@ void ObjectLifetimes::PreCallRecordFreeDescriptorSets(VkDevice device, VkDescrip
         RecordDestroyObject(pDescriptorSets[i], kVulkanObjectTypeDescriptorSet);
         if (pPoolNode) {
             pPoolNode->child_objects->erase(HandleToUint64(pDescriptorSets[i]));
+        }
+        {
+            std::unique_lock<std::mutex> l(set_layout_mutex);
+            auto it = set_layouts.find(pDescriptorSets[i]);
+            if (it != set_layouts.end())
+                set_layouts.erase(it);
         }
     }
 }
